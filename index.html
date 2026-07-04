@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Раціон">
+    <title>Трекер раціону</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f2f2f7;
+            color: #1c1c1e;
+            margin: 0;
+            padding: 16px;
+            padding-top: env(safe-area-inset-top, 16px);
+        }
+        h2, h3 { margin-top: 0; font-size: 18px; }
+        .card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .input-group { margin-bottom: 12px; }
+        .input-group label {
+            display: block;
+            font-size: 13px;
+            color: #8e8e93;
+            margin-bottom: 4px;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e5e5ea;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 16px; /* Запобігає автозуму на iOS */
+            background-color: #f2f2f7;
+        }
+        .flex-row {
+            display: flex;
+            gap: 12px;
+        }
+        .flex-row .input-group {
+            flex: 1;
+            margin-bottom: 8px;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            background-color: #007aff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        button:active { background-color: #0056b3; }
+        .totals {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            text-align: center;
+        }
+        .total-item {
+            background: #f2f2f7;
+            padding: 10px 4px;
+            border-radius: 8px;
+        }
+        .total-item span {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .total-item small {
+            font-size: 11px;
+            color: #8e8e93;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .entry {
+            border-bottom: 1px solid #e5e5ea;
+            padding: 12px 0;
+        }
+        .entry:last-child { border-bottom: none; }
+        .entry-header {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 4px;
+        }
+        .entry-details {
+            font-size: 13px;
+            color: #8e8e93;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>Додати прийом їжі</h2>
+        <div class="input-group">
+            <label>Назва продукту</label>
+            <input type="text" id="foodName" placeholder="Наприклад: Хумус">
+        </div>
+        
+        <div class="flex-row">
+            <div class="input-group">
+                <label>Вага (г)</label>
+                <input type="number" id="weight" step="1">
+            </div>
+            <div class="input-group">
+                <label>Час</label>
+                <input type="time" id="time">
+            </div>
+        </div>
+
+        <div class="flex-row">
+            <div class="input-group">
+                <label>Ккал</label>
+                <input type="number" id="calories" step="1">
+            </div>
+            <div class="input-group">
+                <label>Білки (г)</label>
+                <input type="number" id="protein" step="0.1">
+            </div>
+        </div>
+
+        <div class="flex-row">
+            <div class="input-group">
+                <label>Жири (г)</label>
+                <input type="number" id="fat" step="0.1">
+            </div>
+            <div class="input-group">
+                <label>Вуглеводи (г)</label>
+                <input type="number" id="carbs" step="0.1">
+            </div>
+        </div>
+
+        <button onclick="addEntry()">Зберегти</button>
+    </div>
+
+    <div class="card">
+        <h3>Підсумок за сьогодні</h3>
+        <div class="totals">
+            <div class="total-item"><small>ККАЛ</small><span id="tot-cal">0</span></div>
+            <div class="total-item"><small>БІЛКИ</small><span id="tot-pro">0</span></div>
+            <div class="total-item"><small>ЖИРИ</small><span id="tot-fat">0</span></div>
+            <div class="total-item"><small>ВУГЛ</small><span id="tot-car">0</span></div>
+        </div>
+    </div>
+
+    <div class="card" id="entriesList">
+        </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            setCurrentTime();
+            renderEntries();
+        });
+
+        function setCurrentTime() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('time').value = `${hours}:${minutes}`;
+        }
+
+        function addEntry() {
+            const name = document.getElementById('foodName').value.trim();
+            if (!name) return;
+
+            const entry = {
+                id: Date.now(),
+                date: new Date().toLocaleDateString('uk-UA'),
+                name: name,
+                weight: parseFloat(document.getElementById('weight').value) || 0,
+                time: document.getElementById('time').value,
+                calories: parseFloat(document.getElementById('calories').value) || 0,
+                protein: parseFloat(document.getElementById('protein').value) || 0,
+                fat: parseFloat(document.getElementById('fat').value) || 0,
+                carbs: parseFloat(document.getElementById('carbs').value) || 0
+            };
+
+            let entries = JSON.parse(localStorage.getItem('nutrition_data') || '[]');
+            entries.push(entry);
+            localStorage.setItem('nutrition_data', JSON.stringify(entries));
+
+            clearInputs();
+            renderEntries();
+        }
+
+        function clearInputs() {
+            document.getElementById('foodName').value = '';
+            document.getElementById('weight').value = '';
+            document.getElementById('calories').value = '';
+            document.getElementById('protein').value = '';
+            document.getElementById('fat').value = '';
+            document.getElementById('carbs').value = '';
+            setCurrentTime();
+        }
+
+        function renderEntries() {
+            const today = new Date().toLocaleDateString('uk-UA');
+            let entries = JSON.parse(localStorage.getItem('nutrition_data') || '[]');
+            
+            // Фільтрація тільки сьогоднішніх записів
+            let todayEntries = entries.filter(e => e.date === today);
+            
+            // Сортування за часом (хронологічно)
+            todayEntries.sort((a, b) => a.time.localeCompare(b.time));
+
+            const listDiv = document.getElementById('entriesList');
+            listDiv.innerHTML = '';
+
+            let tCal = 0, tPro = 0, tFat = 0, tCar = 0;
+
+            if (todayEntries.length === 0) {
+                listDiv.innerHTML = '<p style="text-align:center; font-size:14px; color:#8e8e93; margin:0;">Немає записів на сьогодні.</p>';
+            } else {
+                todayEntries.forEach(e => {
+                    tCal += e.calories; tPro += e.protein; tFat += e.fat; tCar += e.carbs;
+                    
+                    listDiv.innerHTML += `
+                        <div class="entry">
+                            <div class="entry-header">
+                                <span>${e.time} — ${e.name}</span>
+                                <span>${e.calories} ккал</span>
+                            </div>
+                            <div class="entry-details">
+                                Вага: ${e.weight}г | Б: ${e.protein}г | Ж: ${e.fat}г | В: ${e.carbs}г
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            // Оновлення підсумків
+            document.getElementById('tot-cal').innerText = tCal.toFixed(0);
+            document.getElementById('tot-pro').innerText = tPro.toFixed(1);
+            document.getElementById('tot-fat').innerText = tFat.toFixed(1);
+            document.getElementById('tot-car').innerText = tCar.toFixed(1);
+        }
+    </script>
+</body>
+</html>
